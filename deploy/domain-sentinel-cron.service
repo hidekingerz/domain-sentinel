@@ -1,0 +1,21 @@
+[Unit]
+Description=domain-sentinel weekly check trigger
+After=domain-sentinel.service
+Wants=domain-sentinel.service
+
+[Service]
+Type=oneshot
+User=domain-sentinel
+EnvironmentFile=/opt/domain-sentinel/.env
+# CRON_SECRET must NOT appear in argv (visible via /proc/*/cmdline).
+# Write it to a 0600 header file and hand it to curl via --header-file.
+ExecStart=/bin/sh -c 'set -eu; \
+  f=$(mktemp); chmod 600 "$f"; trap "rm -f \"$f\"" EXIT; \
+  printf "Authorization: Bearer %s\n" "$CRON_SECRET" >"$f"; \
+  /usr/bin/curl -fsS -X POST --header-file "$f" http://127.0.0.1:${PORT}/api/cron/check'
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

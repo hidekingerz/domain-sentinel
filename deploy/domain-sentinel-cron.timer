@@ -1,0 +1,10 @@
+[Unit]
+Description=Run domain-sentinel check weekly
+
+[Timer]
+OnCalendar=Mon 09:00 Asia/Tokyo
+Persistent=true
+Unit=domain-sentinel-cron.service
+
+[Install]
+WantedBy=timers.target
