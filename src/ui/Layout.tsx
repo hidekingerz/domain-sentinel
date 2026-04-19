@@ -1,7 +1,14 @@
 import type { FC, PropsWithChildren } from 'hono/jsx';
+import type { AccessIdentity } from '../auth/cloudflareAccess.js';
 
-export const Layout: FC<PropsWithChildren<{ title?: string }>> = ({ title, children }) => {
+interface LayoutProps {
+  title?: string;
+  identity?: AccessIdentity;
+}
+
+export const Layout: FC<PropsWithChildren<LayoutProps>> = ({ title, identity, children }) => {
   const heading = title ? `${title} — domain-sentinel` : 'domain-sentinel';
+  const who = identity?.email ?? identity?.name ?? identity?.sub;
   return (
     <html lang="ja">
       <head>
@@ -19,9 +26,9 @@ export const Layout: FC<PropsWithChildren<{ title?: string }>> = ({ title, child
           <nav>
             <a href="/">Domains</a>
             <a href="/runs">Runs</a>
-            <form method="post" action="/logout">
-              <button type="submit" class="linklike">Logout</button>
-            </form>
+            {who ? <span class="muted">{who}</span> : null}
+            {identity?.devMode ? <span class="badge warn">DEV</span> : null}
+            <a href="/logout">Logout</a>
           </nav>
         </header>
         <main>{children}</main>

@@ -1,15 +1,16 @@
 import { Hono } from 'hono';
-import { requireSession } from './auth/middleware.js';
+import { requireAccess } from './auth/middleware.js';
+import { isDevMode } from './auth/cloudflareAccess.js';
 import { publicApi } from './routes/api.js';
-import { authRoutes } from './routes/auth.js';
+import { sessionRoutes } from './routes/session.js';
 import { uiRoutes } from './routes/ui.js';
 import { APP_JS } from './ui/scripts.js';
 import { APP_CSS } from './ui/styles.js';
 
 export const app = new Hono();
 
-// Baseline security headers. Caddy may add more (HSTS), but app-level defense
-// in depth keeps these present even when run behind a different proxy.
+// Baseline security headers. Caddy/Cloudflare may add more (HSTS), but
+// app-level defense in depth keeps these present under any fronting proxy.
 app.use('*', async (c, next) => {
   await next();
   c.header('X-Content-Type-Options', 'nosniff');
@@ -32,9 +33,17 @@ app.get('/assets/app.js', (c) => {
   return c.body(APP_JS, 200, { 'Content-Type': 'application/javascript; charset=utf-8' });
 });
 app.route('/', publicApi); // /api/cron/check is gated by Bearer + loopback
-app.route('/', authRoutes); // /login, /logout
 
-// Anything below this line REQUIRES a valid session cookie.
+// Everything below REQUIRES a valid Cloudflare Access JWT.
+// In dev mode (CF_* env vars unset) a synthetic identity is injected.
 // If you add a new unauthenticated route, register it above, not below.
-app.use('*', requireSession);
+app.use('*', requireAccess);
+app.route('/', sessionRoutes);
 app.route('/', uiRoutes);
+
+if (isDevMode()) {
+  console.warn(
+    '[domain-sentinel] DEV MODE: Cloudflare Access is NOT configured. ' +
+      'All requests are auto-authenticated. Set CF_ACCESS_TEAM_DOMAIN and CF_ACCESS_AUD for production.',
+  );
+}

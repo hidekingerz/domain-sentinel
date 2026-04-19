@@ -1,0 +1,22 @@
+[Unit]
+Description=cloudflared tunnel for domain-sentinel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cloudflared
+# TUNNEL_TOKEN is the Cloudflare Zero Trust tunnel token (obtained when
+# you create the tunnel in the dashboard). Keep it in a 0600 file.
+EnvironmentFile=/etc/cloudflared/domain-sentinel.env
+ExecStart=/usr/bin/cloudflared --no-autoupdate tunnel run --token ${TUNNEL_TOKEN}
+Restart=always
+RestartSec=5
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

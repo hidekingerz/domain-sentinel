@@ -2,21 +2,36 @@ import { timingSafeEqual } from 'node:crypto';
 import type { Context, MiddlewareHandler } from 'hono';
 import { getConnInfo } from '@hono/node-server/conninfo';
 import { getCookie } from 'hono/cookie';
-import { SESSION_COOKIE, verifySessionToken } from './session.js';
+import {
+  devIdentity,
+  extractAssertion,
+  isDevMode,
+  verifyAccessJwt,
+  type AccessIdentity,
+} from './cloudflareAccess.js';
 
-export const requireSession: MiddlewareHandler = async (c, next) => {
-  const token = getCookie(c, SESSION_COOKIE);
-  const payload = token ? await verifySessionToken(token) : null;
-  if (!payload) {
-    const accept = c.req.header('accept') ?? '';
-    if (accept.includes('text/html')) {
-      return c.redirect('/login', 302);
+export const requireAccess: MiddlewareHandler<{ Variables: { identity: AccessIdentity } }> =
+  async (c, next) => {
+    if (isDevMode()) {
+      c.set('identity', devIdentity());
+      await next();
+      return;
     }
-    return c.json({ error: 'unauthorized' }, 401);
-  }
-  c.set('session', payload);
-  await next();
-};
+    const header = c.req.header('Cf-Access-Jwt-Assertion');
+    const cookie = getCookie(c, 'CF_Authorization');
+    const token = extractAssertion(header, cookie);
+    if (!token) {
+      return c.json({ error: 'missing Cloudflare Access assertion' }, 401);
+    }
+    try {
+      const identity = await verifyAccessJwt(token);
+      c.set('identity', identity);
+      await next();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'invalid token';
+      return c.json({ error: 'invalid Access JWT', detail: message }, 401);
+    }
+  };
 
 function constantTimeEquals(a: string, b: string): boolean {
   const ba = Buffer.from(a, 'utf8');
@@ -47,6 +62,8 @@ export function requireLoopback(c: Context): Response | null {
   }
 }
 
+// Cloudflare Access already blocks cross-origin state-changing requests at the
+// edge, but we keep this as defense in depth for dev-mode and misconfig cases.
 export function isSameOrigin(c: Context): boolean {
   const origin = c.req.header('origin');
   const host = c.req.header('host');

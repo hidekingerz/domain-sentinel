@@ -1,14 +1,14 @@
-domain-sentinel.example.com {
-    encode zstd gzip
-
-    header {
-        Strict-Transport-Security "max-age=31536000; includeSubDomains"
-        X-Content-Type-Options "nosniff"
-        X-Frame-Options "DENY"
-        Referrer-Policy "strict-origin-when-cross-origin"
-        Permissions-Policy "interest-cohort=()"
-        -Server
-    }
-
-    reverse_proxy 127.0.0.1:3000
-}
+# このアプリは Cloudflare Tunnel 経由で公開する前提のため、Caddy は通常不要です。
+# 万が一 cloudflared を使わず Caddy で公開する場合のサンプルとして残しています。
+#
+# domain-sentinel.example.com {
+#     encode zstd gzip
+#     header {
+#         Strict-Transport-Security "max-age=31536000; includeSubDomains"
+#         X-Content-Type-Options "nosniff"
+#         X-Frame-Options "DENY"
+#         Referrer-Policy "strict-origin-when-cross-origin"
+#         -Server
+#     }
+#     reverse_proxy 127.0.0.1:3030
+# }

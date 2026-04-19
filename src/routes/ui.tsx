@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { eq } from 'drizzle-orm';
+import type { AccessIdentity } from '../auth/cloudflareAccess.js';
 import { isSameOrigin } from '../auth/middleware.js';
 import { db, dkimSelectors, domains } from '../db/client.js';
 import {
@@ -18,7 +19,13 @@ import { runCheck } from '../lib/runCheck.js';
 import { Layout } from '../ui/Layout.js';
 import type { Finding } from '../checkers/types.js';
 
-export const uiRoutes = new Hono();
+type Env = { Variables: { identity: AccessIdentity } };
+
+export const uiRoutes = new Hono<Env>();
+
+function identityOf(c: { get: (k: 'identity') => AccessIdentity | undefined }): AccessIdentity | undefined {
+  return c.get('identity');
+}
 
 function StatusBadge({ status }: { status: string }) {
   return <span class={`badge ${status}`}>{status.toUpperCase()}</span>;
@@ -27,7 +34,7 @@ function StatusBadge({ status }: { status: string }) {
 uiRoutes.get('/', (c) => {
   const overview = listDomainsOverview();
   return c.html(
-    <Layout title="Domains">
+    <Layout title="Domains" identity={identityOf(c)}>
       <div class="card">
         <div class="card-header">
           <h1>Domains</h1>
@@ -99,7 +106,7 @@ uiRoutes.get('/', (c) => {
 
 uiRoutes.get('/domains/new', (c) =>
   c.html(
-    <Layout title="Add domain">
+    <Layout title="Add domain" identity={identityOf(c)}>
       <div class="card card-narrow">
         <h1>Add domain</h1>
         <form method="post" action="/domains">
@@ -161,7 +168,7 @@ uiRoutes.get('/domains/:id', (c) => {
   const history = historyForDomain(id, 50);
 
   return c.html(
-    <Layout title={domain.name}>
+    <Layout title={domain.name} identity={identityOf(c)}>
       <div class="card">
         <div class="card-header">
           <h1>{domain.name}</h1>
@@ -328,7 +335,7 @@ uiRoutes.post('/check/:id', async (c) => {
 uiRoutes.get('/runs', (c) => {
   const runs = listRecentRuns(50);
   return c.html(
-    <Layout title="Runs">
+    <Layout title="Runs" identity={identityOf(c)}>
       <div class="card">
         <h1>Recent runs</h1>
         <table class="t-runs">
